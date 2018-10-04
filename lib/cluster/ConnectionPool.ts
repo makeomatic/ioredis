@@ -1,9 +1,13 @@
 import {parseURL} from '../utils'
 import {EventEmitter} from 'events'
 import {noop, defaults} from '../utils/lodash'
+import {NODE_STATUS} from '../utils'
+import {multi} from 'event-to-promise'
 
 const Redis = require('../redis')
 const debug = require('../utils/debug')('ioredis:cluster:connectionPool')
+const maxInt = 2147483647
+const resolveStatus = [NODE_STATUS.WAIT, NODE_STATUS.CONNECT, NODE_STATUS.READY, NODE_STATUS.END]
 
 type NODE_TYPE = 'all' | 'master' | 'slave'
 
@@ -24,6 +28,8 @@ export default class ConnectionPool extends EventEmitter {
   }
 
   private specifiedOptions: {[key: string]: any} = {}
+  private ready: boolean = false
+  private iteration: number = 0
 
   constructor (private redisOptions) {
     super()
@@ -75,13 +81,16 @@ export default class ConnectionPool extends EventEmitter {
         enableOfflineQueue: true,
         readOnly: readOnly
       }, node, this.redisOptions, { lazyConnect: true }))
-      this.nodes.all[node.key] = redis
-      this.nodes[readOnly ? 'slave' : 'master'][node.key] = redis
 
-      redis.once('end', () => {
+      const role = readOnly ? 'slave' : 'master'
+      this.nodes.all[node.key] = redis
+      this.nodes[role][node.key] = redis
+
+      redis.once(NODE_STATUS.END, () => {
         delete this.nodes.all[node.key]
         delete this.nodes.master[node.key]
         delete this.nodes.slave[node.key]
+
         this.emit('-node', redis)
         if (!Object.keys(this.nodes.all).length) {
           this.emit('drain')
@@ -106,6 +115,8 @@ export default class ConnectionPool extends EventEmitter {
    * @memberof ConnectionPool
    */
   public reset (nodes: Array<string | number | object>): void {
+    this.ready = false
+    this.iteration = (this.iteration + 1) & maxInt
     const newNodes = {}
     nodes.forEach((node) => {
       const options: {port?: number | string, db?: number, key?: string} = {}
@@ -133,10 +144,34 @@ export default class ConnectionPool extends EventEmitter {
         this.nodes.all[key].disconnect()
       }
     })
-    Object.keys(newNodes).forEach((key) => {
+
+    const iteration = this.iteration
+    const track = Object.keys(newNodes).map((key) => {
       const node = newNodes[key]
-      this.findOrCreate(node, node.readOnly)
+      const redis = this.findOrCreate(node, node.readOnly)
+
+      if (resolveStatus.indexOf(redis.status) >= 0) {
+        return null
+      }
+
+      return multi(redis, resolveStatus, [])
     })
+
+    Promise.all(track).then(() => {
+      if (this.iteration !== iteration) return
+
+      this.ready = true
+      this.emit('+all')
+    })
+  }
+
+  public onReady (handler: () => any): void {
+    if (this.ready) {
+      handler()
+      return
+    }
+
+    this.once('+all', handler)
   }
 }
 
