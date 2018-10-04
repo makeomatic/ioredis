@@ -1,23 +1,26 @@
 {
-  "name": "ioredis",
+  "name": "@makeomatic/ioredis",
   "version": "4.0.0",
   "description": "A robust, performance-focused and full-featured Redis client for Node.js.",
   "main": "built/index.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "index.js",
     "built/"
   ],
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha",
-    "test:cov": "cross-env NODE_ENV=test nyc mocha",
+    "test": "npm run build && cross-env NODE_ENV=test mocha",
+    "test:cov": "npm run build && cross-env NODE_ENV=test nyc mocha",
     "build": "rm -rf built && tsc",
     "generate-docs": "jsdoc2md lib/redis.js lib/cluster/index.js lib/commander.js > API.md",
-    "prepublish": "npm run build && npm test",
+    "prepublishOnly": "npm run build && npm test",
     "bench": "matcha benchmarks/*.js"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/luin/ioredis.git"
+    "url": "git://github.com/makeomatic/ioredis.git"
   },
   "keywords": [
     "redis",
@@ -52,6 +55,8 @@
     "standard-as-callback": "^1.0.0"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^3.0.0",
+    "@semantic-release/git": "^7.0.4",
     "@types/node": "^10.11.4",
     "bluebird": "^3.5.2",
     "chai": "^4.2.0",
@@ -61,6 +66,7 @@
     "jsdoc-to-markdown": "^4.0.1",
     "mocha": "^5.2.0",
     "nyc": "^13.0.1",
+    "semantic-release": "^15.9.17",
     "server-destroy": "^1.0.1",
     "sinon": "^6.3.5",
     "source-map-support": "^0.5.9",
