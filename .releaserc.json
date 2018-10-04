@@ -12,7 +12,15 @@
       "changelogFile": "Changelog.md"
     },
     "@semantic-release/npm",
-    "@semantic-release/git"
+    {
+      "path": "@semantic-release/git",
+      "assets": [
+        "Changelog.md",
+        "package.json",
+        "package-lock.json",
+        "npm-shrinkwrap.json"
+      ]
+    }
   ],
   "publish": [
     "@semantic-release/npm",
