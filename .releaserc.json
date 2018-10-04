@@ -1,12 +1,16 @@
 {
   "branch": "canary",
   "verifyConditions": [
+    "@semantic-release/npm",
     "@semantic-release/changelog",
     "@semantic-release/git",
     "@semantic-release/github"
   ],
   "prepare": [
-    "@semantic-release/changelog",
+    {
+      "path": "@semantic-release/changelog",
+      "changelogFile": "Changelog.md"
+    },
     "@semantic-release/npm",
     "@semantic-release/git"
   ],
